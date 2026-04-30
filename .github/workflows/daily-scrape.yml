@@ -1,0 +1,48 @@
+name: VisionIAS Daily Scrape
+
+on:
+  schedule:
+    - cron: '30 4,13 * * *' # 10:00 AM and 06:30 PM IST (04:30 and 13:00 UTC)
+  workflow_dispatch: # Allow manual trigger
+    inputs:
+      test_mode:
+        description: 'Run in test mode (1 article)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GIST_ID_VISIONIAS: ${{ secrets.GIST_ID_VISIONIAS }}
+          TRANSLATE_TO_GUJARATI: 'true'
+          SCRAPE_ON_START: 'true'
+          LOG_LEVEL: 'info'
+        run: |
+          if [ "${{ github.event.inputs.test_mode }}" == "true" ]; then
+            npm start -- --test
+          else
+            npm start
+          fi
