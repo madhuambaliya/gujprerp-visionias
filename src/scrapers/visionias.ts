@@ -88,9 +88,9 @@ export class VisionIASScraper {
         if (!articleUrlPattern.test(href)) return;
         if (href.endsWith('/archive') || href.includes('/search') || href.includes('page=')) return;
 
-        // Filter by current or next month if date is in URL
+        // Filter by current or next month if date is in URL (Skip if SCRAPE_HISTORICAL is true)
         const hasDate = href.match(/\d{4}-\d{2}-\d{2}/);
-        if (hasDate) {
+        if (hasDate && process.env.SCRAPE_HISTORICAL !== 'true') {
           const dateStr = hasDate[0];
           if (!dateStr.startsWith(currentMonthStr) && !dateStr.startsWith(nextMonthStr)) {
             return; // Skip old months
