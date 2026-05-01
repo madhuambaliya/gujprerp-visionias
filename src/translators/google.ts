@@ -2,23 +2,70 @@ import translate from 'google-translate-api-next';
 import { logger } from '../utils/logger';
 
 export class GoogleTranslator {
+  private MAX_CHUNK_SIZE = 2000; // Safer limit for free API
+
   async translate(text: string, targetLanguage: string = 'gu'): Promise<string | null> {
     if (!text || text.trim() === '') return null;
 
-    try {
-      const res = await translate(text, { to: targetLanguage });
-      
-      // Simple validation: if target is Gujarati, the result should contain non-ASCII characters
-      if (this.isTranslated(res.text)) {
-        return res.text;
-      } else {
-        logger.warn(`[Translator] Translation seems to have failed (returned English) for: ${text.substring(0, 30)}...`);
-        return null;
-      }
-    } catch (error) {
-      logger.error(`[Translator] Error translating to ${targetLanguage}:`, error);
-      return null;
+    // If text is too long, split it into chunks
+    if (text.length > this.MAX_CHUNK_SIZE) {
+      return this.translateLongText(text, targetLanguage);
     }
+
+    return this.translateWithRetry(text, targetLanguage);
+  }
+
+  private async translateWithRetry(text: string, targetLanguage: string, retries: number = 2): Promise<string | null> {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const res = await translate(text, { to: targetLanguage });
+        
+        if (this.isTranslated(res.text)) {
+          return res.text;
+        } else {
+          logger.warn(`[Translator] Attempt ${i + 1}: Translation returned English for: ${text.substring(0, 30)}...`);
+        }
+      } catch (error: any) {
+        logger.error(`[Translator] Attempt ${i + 1} Error:`, error.message || error);
+        if (i < retries) {
+          const delay = 1000 * (i + 1);
+          await new Promise(r => setTimeout(r, delay));
+        }
+      }
+    }
+    return null;
+  }
+
+  private async translateLongText(text: string, targetLanguage: string): Promise<string | null> {
+    logger.info(`[Translator] Splitting long text into chunks (${text.length} chars)`);
+    
+    // Split by paragraphs to keep context
+    const paragraphs = text.split('\n');
+    let chunks: string[] = [];
+    let currentChunk = '';
+
+    for (const p of paragraphs) {
+      if ((currentChunk.length + p.length) < this.MAX_CHUNK_SIZE) {
+        currentChunk += (currentChunk ? '\n' : '') + p;
+      } else {
+        if (currentChunk) chunks.push(currentChunk);
+        currentChunk = p;
+      }
+    }
+    if (currentChunk) chunks.push(currentChunk);
+
+    let translatedChunks: string[] = [];
+    for (const chunk of chunks) {
+      const translated = await this.translateWithRetry(chunk, targetLanguage);
+      if (!translated) {
+        logger.error('[Translator] Failed to translate a chunk of long text.');
+        return null; // Fail the whole article to avoid mixed content
+      }
+      translatedChunks.push(translated);
+      await new Promise(r => setTimeout(r, 500)); // Delay between chunks
+    }
+
+    return translatedChunks.join('\n');
   }
 
   private isTranslated(text: string): boolean {

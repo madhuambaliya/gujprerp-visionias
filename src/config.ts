@@ -11,9 +11,9 @@ export const CONFIG = {
 
   // VisionIAS Subjects mapped to their own specific slugs
   SUBJECTS: [
-    { code: 1, name: 'Culture', slug: 'art-and-culture' },
+    { code: 1, name: 'Culture', slug: 'culture' },
     { code: 2, name: 'History', slug: 'history' },
-    { code: 3, name: 'Social Issue', slug: 'social-issues' },
+    { code: 3, name: 'Social Issue', slug: 'social-issue' },
     { code: 4, name: 'Geography', slug: 'geography' },
     { code: 5, name: 'Polity and Governance', slug: 'polity-and-governance' },
     { code: 6, name: 'International Relations', slug: 'international-relations' },
@@ -31,10 +31,10 @@ export const CONFIG = {
 
   // Fallback map for category UUIDs
   CATEGORY_MAP: {
-    'current_affairs': { slug: 'current_affairs', uuid: '6624e756-a258-4c7a-ad8e-8ec46c478bdd' },
-    'art-and-culture': { slug: 'art-and-culture', uuid: '' },
+    'current_affairs': { slug: 'current_affairs', uuid: '3e24b5a3-ef42-45a2-80c1-3cf058e4389d' },
+    'culture': { slug: 'culture', uuid: '' },
     'history': { slug: 'history', uuid: '' },
-    'social-issues': { slug: 'social-issues', uuid: '' },
+    'social-issue': { slug: 'social-issue', uuid: '' },
     'geography': { slug: 'geography', uuid: '' },
     'polity-and-governance': { slug: 'polity-and-governance', uuid: '' },
     'international-relations': { slug: 'international-relations', uuid: '' },
@@ -48,7 +48,7 @@ export const CONFIG = {
     'places-in-news': { slug: 'places-in-news', uuid: '' },
     'schemes-in-news': { slug: 'schemes-in-news', uuid: '' },
     'miscellaneous': { slug: 'miscellaneous', uuid: '' },
-    'default': { slug: 'current_affairs', uuid: '6624e756-a258-4c7a-ad8e-8ec46c478bdd' },
+    'default': { slug: 'current_affairs', uuid: '3e24b5a3-ef42-45a2-80c1-3cf058e4389d' },
   } as Record<string, { slug: string, uuid: string }>
 };
 

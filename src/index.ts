@@ -38,7 +38,7 @@ export async function runScraper() {
       let articleUrls = await visionScraper.scrapeListing(subject.code, subject.name, 'month');
       
       if (articleUrls.length === 0) {
-        logger.info(`[Main] No articles found for ${subject.name} in 'month' range. Trying 'year' fallback...`);
+        logger.info(`[Main] No articles found for ${subject.name} in 'month' range. Trying 'year' range to find recent articles...`);
         articleUrls = await visionScraper.scrapeListing(subject.code, subject.name, 'year');
       }
       
@@ -73,6 +73,11 @@ export async function runScraper() {
           // Format HTML (English)
           const formattedBodyEn = formatMobileHTML(article.body);
           
+          if (!formattedBodyEn || formattedBodyEn.trim().length < 50) {
+            logger.warn(`[Main] Skipping article with empty or too short body: ${article.title}`);
+            continue;
+          }
+
           // Translation
           let titleGu: string | null = null;
           let bodyGu: string | null = null;
@@ -83,6 +88,17 @@ export async function runScraper() {
             titleGu = await translator.translate(article.title);
             bodyGu = await translator.translate(formattedBodyEn);
             isTranslated = !!(titleGu && bodyGu);
+
+            if (!isTranslated) {
+              logger.error(`[Main] Translation failed for: ${article.title}. Skipping insertion to avoid English content.`);
+              continue;
+            }
+          } else {
+            // If translation is disabled, we still might not want English content based on user's request,
+            // but usually this means the user wants it as is. 
+            // However, the user specifically said "never insert article with english content".
+            logger.warn(`[Main] Translation is disabled but user requested no English content. Skipping: ${article.title}`);
+            continue;
           }
 
           // Determine category ID

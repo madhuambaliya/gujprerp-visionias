@@ -57,8 +57,15 @@ export class VisionIASScraper {
     const links: string[] = [];
 
     try {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      await new Promise(r => setTimeout(r, 4000)); // Wait for Livewire
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+      await new Promise(r => setTimeout(r, 6000)); // Wait for Livewire and animations
+      
+      // Wait for at least one article link or the "no results" message
+      try {
+        await page.waitForSelector('a[href*="/current-affairs/"]', { timeout: 10000 });
+      } catch (e) {
+        logger.debug(`[VisionIAS] No articles appeared within 10s for ${subjectName}`);
+      }
 
       // Load more if needed
       for (let i = 0; i < (CONFIG.PAGES_TO_SCRAPE - 1); i++) {
@@ -78,7 +85,11 @@ export class VisionIASScraper {
       const now = new Date();
       const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       
-      // Calculate next month
+      // Calculate previous month
+      const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMonthStr = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Calculate next month (for timezone overlaps)
       const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
       const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
 
@@ -92,7 +103,7 @@ export class VisionIASScraper {
         const hasDate = href.match(/\d{4}-\d{2}-\d{2}/);
         if (hasDate && process.env.SCRAPE_HISTORICAL !== 'true') {
           const dateStr = hasDate[0];
-          if (!dateStr.startsWith(currentMonthStr) && !dateStr.startsWith(nextMonthStr)) {
+          if (!dateStr.startsWith(currentMonthStr) && !dateStr.startsWith(prevMonthStr) && !dateStr.startsWith(nextMonthStr)) {
             return; // Skip old months
           }
         }
@@ -120,12 +131,27 @@ export class VisionIASScraper {
 
       const content = await page.content();
       const $ = cheerio.load(content);
-      const articleContent = $('#article-content');
+      
+      // Try multiple selectors
+      let articleContent = $('#article-content');
+      if (!articleContent.length) articleContent = $('.article-content');
+      if (!articleContent.length) articleContent = $('.post-content');
+      if (!articleContent.length) articleContent = $('.entry-content');
+      if (!articleContent.length) articleContent = $('article');
 
-      if (!articleContent.length) return null;
+      const bodyHtml = articleContent.html()?.trim() || '';
+
+      // Validate content length (English content should have some substance)
+      if (!bodyHtml || bodyHtml.length < 100) {
+        logger.warn(`[VisionIAS] Skipping article due to insufficient content (${bodyHtml.length} chars): ${articleUrl}`);
+        return null;
+      }
+
+      // Cleanup HTML
+      articleContent.find('script, style, nav, footer, header, .ads, .social-share').remove();
 
       let title = this.extractTitleFromUrl(articleUrl);
-      let bodyHtml = articleContent.html() || '';
+      const cleanBody = articleContent.html() || bodyHtml;
 
       // Extract date from URL or content
       // We use the current time for published_at so new scrapes appear at the top
@@ -137,7 +163,7 @@ export class VisionIASScraper {
       return {
         title: title || 'Untitled Article',
         url: articleUrl,
-        body: bodyHtml,
+        body: cleanBody,
         category: category,
         date: date,
         imageUrl: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80&w=1000'
