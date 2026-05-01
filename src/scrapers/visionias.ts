@@ -57,7 +57,7 @@ export class VisionIASScraper {
     const links: string[] = [];
 
     try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await new Promise(r => setTimeout(r, 6000)); // Wait for Livewire and animations
       
       // Wait for at least one article link or the "no results" message
